@@ -68,13 +68,13 @@ titanicdataset <- read.csv2(file = "train.csv", header = TRUE, sep = ",", quote 
 head(titanicdataset)
 ```
 
-Veiem que tenim 12 atributs i que no tots tenen valors assignats. Cridem a la funció summary per veure un resum dels valors del dataset sencer.
+Veiem que tenim `r ncol(titanicdataset) ` atributs i que no tots tenen valors assignats. Cridem a la funció summary per veure un resum dels valors del dataset sencer.
 
 ```{r, echo=TRUE}
 summary(titanicdataset)
 ```
 
-De tots els atributs, veiem que els de identificador del passatger, nom del passatger i numero de tiquet son irrellevants a l’hora de predir si un passatger sobreviu o no, per el que els descartem del dataset.
+De tots els atributs, veiem que els de identificador del passatger, nom del passatger i numero de tiquet son irrellevants a l’hora de predir si un passatger sobreviu o no, per el que els descartem del dataset. Ens quedem amb la resta d'atributs que a priori, podrien ser rellevants a l’hora de predir la supervivència d’un passatger.
 
 ```{r, echo=TRUE}
 titanicdataset$PassengerId <- NULL
@@ -82,7 +82,7 @@ titanicdataset$Name <- NULL
 titanicdataset$Ticket <- NULL
 ```
 
-També podem veure que el programa R ha detectat gaire be tots els atributs com a numèrics (Excepte l’atribut sexe i edat). Realment en aquest dataset tots els valors es poden considerar com a categòrics ja que la informació a la que fa referencia està acotat (no es infinit)
+També podem veure que el programa R ha detectat gaire be tots els atributs com a numèrics (Excepte l’atribut sexe i edat). Realment en aquest dataset tots els valors es poden considerar com a categòrics ja que la informació a la que fa referencia està acotat (no es infinit) a excepció de l'atribut edat i taxa (Age, Fare) que poden tenir sentit que siguin contínues de cara a detectar possibles valors outliers o erronis.
 
 
 ```{r, echo=TRUE}
@@ -92,10 +92,18 @@ sapply(titanicdataset, function(x) class(x))
 Transformem els atributs a categòrics.
 
 ```{r, echo=TRUE}
+# Transformem els atributs necessaris a categòrics.
 titanicdataset[,'Survived']<-factor(titanicdataset[,'Survived'])
 titanicdataset[,'Pclass']<-factor(titanicdataset[,'Pclass'])
 titanicdataset[,'SibSp']<-factor(titanicdataset[,'SibSp'])
 titanicdataset[,'Parch']<-factor(titanicdataset[,'Parch'])
+
+# Transformem els atributs necessaris a contínues
+titanicdataset$Age <- as.numeric(titanicdataset$Age)
+
+#options(digits=4)
+titanicdataset$Fare <- as.character(titanicdataset$Fare)
+titanicdataset$Fare <- as.numeric(titanicdataset$Fare)
 ```
 
 # Neteja de les dades.
@@ -134,7 +142,7 @@ suppressWarnings(suppressMessages(library(VIM)))
 titanicdataset$Age <- kNN(titanicdataset)$Age
 ```
 
-Finalment observem que el atribut Cabin li falta 687 valors. Aquest valor es mes complicat d’aproximar ja que no podem calcular quin era la cabina on viatjava els passatgers que no tenen una cabina assignada o si viatjaven sense cabina. En un principi vaig pensar que els passatgers que no tenien cabina assignada es que viatjaven al passadís però analitzant mes les dades, es pot observar que hi ha 40 passatgers de primera classe que no tenen una cabina assignada, i costa de creure que un passatger de primera viatges sense cabina.
+Finalment observem que el atribut Cabin li falta `r sum(sapply(titanicdataset$Cabin, function(x) sum(is.na(x)))) ` valors. Aquest valor es mes complicat d’aproximar ja que no podem calcular quin era la cabina on viatjava els passatgers que no tenen una cabina assignada o si viatjaven sense cabina. En un principi vaig pensar que els passatgers que no tenien cabina assignada es que viatjaven al passadís però analitzant mes les dades, es pot observar que hi ha 40 passatgers de primera classe que no tenen una cabina assignada, i costa de creure que un passatger de primera viatges sense cabina.
 
 ```{r, echo=TRUE}
 table(titanicdataset[is.na(titanicdataset$Cabin),]$Pclass)
@@ -182,15 +190,63 @@ No tenim cap observació amb strings vuits.
 Com hem comentat anteriorment, la majoria dels atributs que te aquest dataset son categòrics (tenen valors finits) per el que es difícil detectar valors outliers. En aquest cas podríem intentar detectar outliers visualitzant en el atribut Edat, mostrant la distribució de les dades en gràfics.
 
 ```{r, echo=TRUE} 
-plot(titanicdataset$Age)
+plot(titanicdataset$Age, xlab="Observacions", ylab="Age")
 boxplot(as.numeric(titanicdataset$Age))
 ```
 
 Podem veure que tenim outliers tant per un extrem com per altre. Això es normal ja que en el Titànic viatjaven tant nens com gent d’avançada edat.
 
-No toquem cap valor.
+Avaluem a continuació l'atribut Fare. Aparentment observem que te valors des de `r min(titanicdataset$Fare) ` fins a `r max(titanicdataset$Fare) `. Tot i que el màxim es una xifra elevada, podria ser real ja que el Titanic tenia compartiments dedicats a la alta elit que podria permetre pagar un preu elevat.
+
+Tot i així agruparem els resultats per classe i avaluarem si hi ha cap valor que que sigui sospitós.
+
+Comencem visualitzant els valors per a la primera classe. 
+
+```{r, echo=TRUE}
+passenger1class <- titanicdataset[titanicdataset$Pclass == "1",]
+summary(passenger1class)
+plot(passenger1class$Fare, xlab="Observacions", ylab="Fare")
+boxplot(passenger1class$Fare)
+```
+
+Veiem que tenim 3 valors molt alts per els passatgers de primera classe. Te tota la pinta que ha estat un error d’inserció de la informació. No tenim manera de recuperar el valor original i ja que son pocs valors, podríem descartar aquestes observacions. A mes a mes veiem que tenim valors molts baixos. Podem suposar que al ser un viatge inaugural, podria ser que alguns tiquets fossin regals a preu simbòlic per a les personalitats.
+
+Tot i així fem primer un encreuament entre el preu i l’edat del client per acabar de contrastar els valors.
+
+```{r, echo=TRUE}
+plot(passenger1class$Age, passenger1class$Fare,  xlab="Edat", ylab="Fare")
+```
+
+Definitivament no te sentit. Observem que hi han persones amb edat inferior a 20 anys que han pagat un preu elevat (entre 100 i 300).
+
+Fem el mateix estudi amb els passatgers de 2 classe.
+
+```{r, echo=TRUE}
+passenger2class <- titanicdataset[titanicdataset$Pclass == "2",]
+summary(passenger2class)
+boxplot(passenger2class$Fare)
+plot(passenger2class$Age, passenger2class$Fare,  xlab="Edat", ylab="Fare")
+```
+
+Igual que en el cas anterior, observem que hi han persones amb edat inferior a 20 anys que han pagat un preu elevat.
+
+Fem el mateix estudi amb els passatgers de 3 classe.
+
+```{r, echo=TRUE}
+passenger3class <- titanicdataset[titanicdataset$Pclass == "3",]
+summary(passenger3class)
+boxplot(passenger3class$Fare)
+plot(passenger3class$Age, passenger3class$Fare,  xlab="Edat", ylab="Fare")
+```
+
+Observem massa observacions amb valors atípics. Tenim molts passatgers de 3 classe que tenen un preu molt similar als passatgers de 2 classe. Definitivament podem pensar que aquest atribut te massa valors mal informats, i com no tenim manera de recuperar la informació original, descartarem el atribut.
+
+```{r, echo=TRUE}
+titanicdataset$Fare <- NULL
+```
 
 Amb aquest passos donem per finalitzada la fase de neteja. A continuació fem l’exportació del dataset amb les dades ja processades per utilitzar en les següents fases del projecte.
+
 
 ```{r, echo=TRUE}
 write.csv(titanicdataset, "titanic_data_clean.csv", row.names = FALSE)
