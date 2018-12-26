@@ -1,0 +1,201 @@
+---
+title: "PRAC2 - Neteja i validació de les dades "
+author: "Rubén Vasallo González"
+date: '`r format(Sys.Date(),"%e de %B %Y")`'
+output:
+  html_document:
+    df_print: kable
+    fig_caption: yes
+    keep_md: yes
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  pdf_document:
+    toc: yes
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load_libraries, include=FALSE}
+library(knitr)
+library(VIM)
+```
+
+# Descripción del dataset
+
+El conjunt de dades que anem a analitzar s’ha extret de la competició de la web de Kaggle anomenada "Titanic: Machine Learning from Disaster" (https://www.kaggle.com/c/titanic) que permet iniciar-se en les competicions que aquesta pagina web te.
+Aquest conjunt de dades (o dataset) te 891 observacions que representen algunes de les característiques dels passatgers, junt amb un atribut que indica si aquest van sobreviure al famós enfonsament o no.
+A continuació detallem el significat de cada atribut i, si es te, els possibles valors que poden tenir (en cas de ser atributs qualitatius)
+
+
+| Variable    | Definició  	                               | Key                                             | 
+|-------------|--------------------------------------------|-------------------------------------------------|  
+| PassengerId | Identificador del passatger                |                                                 |
+| Survived    | Sobreviu                                   | 0 = No, 1 = Yes                                 |  
+| pclass 	    | Classe de Tiquet                           | 1 = 1st, 2 = 2nd, 3 = 3rd                       | 
+| Name        | Nom del passatger                          |                                                 |
+| Sex 	      | Sexe	                                     | male, female                                    | 
+| Age 	      | Edat en anys 	                             |                                                 |  
+| SibSp 	    | # de germans / esposes a bord del Titanic  |                                                 | 	
+| Parch 	    | # de pares / fills a bord del Titanic      |                                                 | 	
+| Ticket 	    | Numero de Tiquet                           |                                                 | 
+| Fare 	      | Tarifa del passatger                       |                                                 | 
+| Cabin 	    | Numero de Cabina                           |                                                 | 
+| Embarked    | Port d'embarcament 	                       | C = Cherbourg, Q = Queenstown, S = Southampton  | 
+
+
+## Quina pregunta/problema pretén respondre?
+
+L’enfonsament del Titanic va ser un dels naufragis mes famós de l’historia. A dia d’avui encara presenta grans misteris i preguntes sense resolució. Una de les raons per les quals el naufragi va comportar aquesta pèrdua de vida va ser que no hi havia prou barques salvavides per als passatgers i la tripulació. Ates a la norma moral de que en cas d’enfonsament, les dones i els nens haurien estat els primers en ser evacuats (https://es.wikipedia.org/wiki/Mujeres_y_ni%C3%B1os_primero), a l’hora de la veritat, això no va ser així, i tot i que hi va haver algun element de sort en la supervivència de l'enfonsament, la historia ens ha demostrat que alguns grups de persones tenien més probabilitats de sobreviure que altres, com ara la classe alta.
+
+L’objectiu d’aquest dataset es el estudi de les característiques dels passatgers que van sobreviure per tractar de crear un model d’aprenentatge automàtic que sigui capaç de predir si nous passatgers amb característiques semblants sobreviurien o no.
+
+# Integració i selecció de les dades d’interès a analitzar.
+
+Per assolir l’objectiu primer carregarem el dataset i li farem una ullada als 6 primers resultats.
+
+```{r, echo=TRUE}
+# Carregar el fitxer de dades en R
+titanicdataset <- read.csv2(file = "train.csv", header = TRUE, sep = ",", quote = "\"", fill = TRUE, encoding="UTF-8")
+# breu resumen dels atributs
+head(titanicdataset)
+```
+
+Veiem que tenim 12 atributs i que no tots tenen valors assignats. Cridem a la funció summary per veure un resum dels valors del dataset sencer.
+
+```{r, echo=TRUE}
+summary(titanicdataset)
+```
+
+De tots els atributs, veiem que els de identificador del passatger, nom del passatger i numero de tiquet son irrellevants a l’hora de predir si un passatger sobreviu o no, per el que els descartem del dataset.
+
+```{r, echo=TRUE}
+titanicdataset$PassengerId <- NULL
+titanicdataset$Name <- NULL
+titanicdataset$Ticket <- NULL
+```
+
+També podem veure que el programa R ha detectat gaire be tots els atributs com a numèrics (Excepte l’atribut sexe i edat). Realment en aquest dataset tots els valors es poden considerar com a categòrics ja que la informació a la que fa referencia està acotat (no es infinit)
+
+
+```{r, echo=TRUE}
+sapply(titanicdataset, function(x) class(x))
+```
+
+Transformem els atributs a categòrics.
+
+```{r, echo=TRUE}
+titanicdataset[,'Pclass']<-factor(titanicdataset[,'Pclass'])
+titanicdataset[,'Survived']<-factor(titanicdataset[,'Survived'])
+titanicdataset[,'SibSp']<-factor(titanicdataset[,'SibSp'])
+titanicdataset[,'Parch']<-factor(titanicdataset[,'Parch'])
+```
+
+# Neteja de les dades.
+
+## Les dades contenen zeros o elements buits? Com gestionaries aquests casos?
+
+Primer comprovem si tenim cap observació amb atributs a null.
+
+```{r, echo=TRUE}
+sapply(titanicdataset, function(x) sum(is.na(x)))
+```
+
+No tenim cap, a continuació comprovem si tenim cap observació amb atributs a 0.
+
+```{r, echo=TRUE}
+sapply(titanicdataset, function(x) sum(x == 0))
+```
+
+En aquest cas tenim valors a 0 en els atributs Survived, SibSp Parch i Fare 
+
+Analitzem cadascun d’ells.
+
+- Survived te sentit que tingui valors a 0 ja que son tots aquells passatgers que no van sobreviure.
+- SibSp te sentit que tingui valors a 0 ja que son tots aquells passatgers que no tenien cap germà o esposa a bord.
+- Parch te sentit que tingui valors a 0 ja que son tots aquells passatgers que no tenien cap pare, mare o fill a bord.
+- Fare te sentit que tingui valors a 0 ja que podrien ser tots aquells passatgers que van ser invitats, no van pagar cap tarifa per viatjar a bord o eren tripulants.
+
+No modifiquem pas cap valor.
+
+A continuació comprovem si tenim cap atribut amb valor string buit.
+
+```{r, echo=TRUE}
+sapply(titanicdataset, function(x) sum(x == ""))
+```
+
+En aquest cas tenim valors a string buits en els atributs Age, Cabin i Embarked 
+
+Analitzem cadascun d’ells.
+
+Observem que tenim en el atribut Embarked valors per informar (Tenim 2 passatgers que no tenen port d'embarcament). 
+
+```{r, echo=TRUE}
+plot(titanicdataset$Embarked)
+```
+
+Ja que no tenim cap manera de recuperar la informació que ens falta intentarem aproximar el origen dels embarcaments de les observacions que no tenen aquesta informació utilitzant el mètode dels veïns mes propers (utilitzant la funció KNN del paquet VIM), que imputa el valor dels resultats (k veïns) mes propers. (Sempre serà millor aproximar el resultat que descartar-lo ja que tindrem un model amb menor marge d’error)
+
+```{r, echo=TRUE}
+titanicdataset$Embarked <- sapply(titanicdataset$Embarked, function(x) if(x==""){NA}else{x} )
+
+suppressWarnings(suppressMessages(library(VIM)))
+
+titanicdataset$Embarked <- kNN(titanicdataset)$Embarked
+titanicdataset[,'Embarked'] <- factor(titanicdataset[,'Embarked'])
+```
+
+Observem que tenim el mateix problema amb el atribut Age. Igual que ens passa en el cas aterior, no tenim manera de recuperar aquesta informació per el que intentarem Aproximar-lo mitjançant el mètode dels veïns mes propers.
+
+```{r, echo=TRUE}
+titanicdataset$Age <- sapply(titanicdataset$Age, function(x) if(x==""){NA}else{x} )
+
+suppressWarnings(suppressMessages(library(VIM)))
+
+titanicdataset$Age <- kNN(titanicdataset)$Age
+titanicdataset[,'Age']<-factor(titanicdataset[,'Age'])
+```
+
+Finalment observem que el atribut Cabin li falta 687 valors. Aquest valor es mes complicat d’aproximar ja que no podem calcular quin era la cabina on viatjava els passatgers que no tenen una cabina assignada o si viatjaven sense cabina. En un principi vaig pensar que els passatgers que no tenien cabina assignada es que viatjaven al passadís però analitzant mes les dades, es pot observar que hi ha 40 passatgers de primera classe que no tenen una cabina assignada, i costa de creure que un passatger de primera viatges sense cabina.
+
+```{r, echo=TRUE}
+table(titanicdataset[titanicdataset$Cabin == "",]$Pclass)
+```
+
+Descartem l’atribut.
+
+```{r, echo=TRUE}
+titanicdataset$Cabin <- NULL
+```
+
+Comprovem una vegada mes que ja no tenim cap observació amb strings vuits.
+
+```{r, echo=TRUE}
+sapply(titanicdataset, function(x) sum(x == ""))
+```
+
+## Identificació i tractament de valors extrems.
+
+Com hem comentat anteriorment, la majoria dels atributs que te aquest dataset son categòrics (tenen valors finits) per el que es difícil detectar valors outliers. En aquest cas podríem intentar detectar outliers visualitzant en el atribut Edat, mostrant la distribució de les dades en gràfics.
+
+```{r, echo=TRUE} 
+plot(titanicdataset$Age)
+boxplot(as.numeric(titanicdataset$Age))
+```
+
+Podem veure que tenim outliers tant per un extrem com per altre. Això es normal ja que en el Titànic viatjaven tant nens com gent d’avançada edat.
+
+No toquem cap valor.
+
+Amb aquest passos donem per finalitzada la fase de neteja. A continuació fem l’exportació del dataset amb les dades ja processades per utilitzar en les següents fases del projecte.
+
+```{r, echo=TRUE}
+write.csv(titanicdataset, "titanic_data_clean.csv", row.names = FALSE)
+```
