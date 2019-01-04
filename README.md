@@ -8,7 +8,7 @@
 projecte
 ├── codi
 │   ├── prac2_1-ruben_vasallo_gonzalez.Rmd # Codi R que neteja les dades del dataset original.
-│   └── prac2_2-ruben_vasallo_gonzalez.Rmd # Codi R
+│   └── prac2_2-ruben_vasallo_gonzalez.Rmd # Codi R que fa el anàlisis de les dades i el model predictiu.
 |
 ├── csv  # datasets
 │   ├── titanic_data_clean.csv # Dataset netejat.
@@ -16,11 +16,11 @@ projecte
 │   
 ├── html
 │   ├── prac2_1-ruben_vasallo_gonzalez.html # Document html de la primera part de la practica que fa referencia a la neteja de les dades.
-│   └── prac2_2-ruben_vasallo_gonzalez.html # Document html de la segona part.
+│   └── prac2_2-ruben_vasallo_gonzalez.html # Document html de la segona part de la practica on es fa referencia al anàlisis de les dades, la creació del model predictiu i les conclusions.
 |
 └── pdf
     ├── prac2_1-ruben_vasallo_gonzalez.pdf # Document pdf de la primera part de la practica que fa referencia a la neteja de les dades.
-    └── prac2_2-ruben_vasallo_gonzalez.pdf # Document pdf de la segona part.
+    └── prac2_2-ruben_vasallo_gonzalez.pdf # Document pdf de la segona part de la practica on es fa referencia al anàlisis de les dades, la creació del model predictiu i les conclusions.
 ```
 
 ## Autors
